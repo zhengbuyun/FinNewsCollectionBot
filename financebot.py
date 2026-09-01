@@ -18,6 +18,14 @@ server_chan_keys = server_chan_keys_env.split(",")
 
 openai_client = OpenAI(api_key=openai_api_key, base_url="https://api.deepseek.com/v1")
 
+# 行业热点关键词（过滤模式）：只保留标题或正文包含以下任一关键词的新闻
+# 修改此列表即可定制你关注的行业，改完 push 后自动生效
+HOT_KEYWORDS = [
+    "新能源", "光伏", "锂电", "半导体", "芯片", "人工智能", "AI", "算力",
+    "机器人", "创新药", "医药", "白酒", "消费", "房地产", "银行", "证券",
+    "保险", "军工", "汽车", "黄金", "石油",
+]
+
 # RSS源地址列表
 rss_feeds = {
     "💲 华尔街见闻":{
@@ -109,8 +117,20 @@ def fetch_rss_articles(rss_feeds, max_articles=10):
                     print(f"⚠️ {source} 的新闻 '{title}' 没有链接，跳过")
                     continue
 
-                # 爬取正文用于分析（不展示）
-                article_text = fetch_article_text(link)
+                # 过滤模式：标题或正文包含热点关键词才保留
+                matched = any(kw in title for kw in HOT_KEYWORDS)
+                article_text = ""
+                if not matched:
+                    # 标题不含关键词，则抓正文再判断
+                    article_text = fetch_article_text(link)
+                    matched = any(kw in article_text for kw in HOT_KEYWORDS)
+                if not matched:
+                    print(f"⏭️ 跳过（不含热点关键词）: {source} - {title}")
+                    continue
+
+                # 抓取正文用于分析（不展示）
+                if not article_text:
+                    article_text = fetch_article_text(link)
                 analysis_text += f"【{title}】\n{article_text}\n\n"
 
                 print(f"🔹 {source} - {title} 获取成功")
